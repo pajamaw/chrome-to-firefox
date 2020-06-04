@@ -19,61 +19,61 @@ const chromeOptions = new chrome.Options();
   const chromeDriver = await new Builder().forBrowser('chrome').withCapabilities(chromeCapabilities).build();
 
   await chromeDriver.get('chrome://system');
-  await (chromeDriver.sleep(6000));
+  await (chromeDriver.sleep(10000));
 
   let extButton = await chromeDriver.findElement(By.css('#extensions-value-btn'));
 
   extButton = await chromeDriver.wait(until.elementIsVisible(extButton), 5000);
+  await (extButton.click())
 
   let extensionList = await chromeDriver.findElement(By.css('#extensions-value'));
   extensionList = await chromeDriver.wait(until.elementLocated(By.css('#extensions-value')));
-  
-  let file = extensionList.getText();
 
-  if (file) {
-    const firefox = require('selenium-webdriver/firefox');
-    // const fs = require('fs');
-    let formattedFile;
+  await extensionList.getText().then(async (text) => {
+    let file = text;
+    if (file) {
 
-    // file = fs.readFileSync('example.txt', 'utf8');
-    formattedFile = file.split(' : ').filter((item, index) => index%2 == 1 && !item.includes('Chrome') && !item.includes('Web Store')).join('\n');
-    let extensions = file.split(' : ').filter((item, index) => index%2 == 1 && !item.includes('Chrome') && !item.includes('Web Store'));
+      console.log(`-----------------------------`);
+      console.log(`Extensionss Found! Now updating Firefox`);
+      console.log(`-----------------------------`);
 
-    console.log(formattedFile)
-    const options = new firefox.Options();
-    options.setBinary("/usr/local/bin/geckodriver");
+      const firefox = require('selenium-webdriver/firefox');
 
+      let formattedFile = file.split(' : ').filter((item, index) => index%2 == 1 && !item.includes('Chrome') && !item.includes('Web Store')).join('\n');
+      let extensions = file.split(' : ').filter((item, index) => index%2 == 1 && !item.includes('Chrome') && !item.includes('Web Store'));
 
-    let searchText = (extension) => `https://addons.mozilla.org/en-US/firefox/search/?platform=mac&q=${extension}`
-    extensions.forEach((ext) => {
-      console.log(ext)
-    });
-    let foundAddOns = 0;
-    const driver = await new Builder().forBrowser('firefox').build();
-    for (let i = 0; i < extensions.length; i++) {
-      let ext = extensions[i];
-      try {
-        await driver.get(searchText(ext));
-        let firstResult = await driver.findElement(By.css('a.SearchResult-link'));
-        await driver.wait(until.elementLocated(By.css('header.Card-header')));
-        firstResult = await driver.wait(until.elementIsVisible(firstResult), 1000);
-        await (firstResult.click())
-        let button = await driver.findElement(By.css('.AMInstallButton'));
-        button = await driver.wait(until.elementIsVisible(button), 1000);
-        await (button.click());
-        await (driver.sleep(5000));
-        foundAddOns += 1;
-      } catch (e) {
-        console.log('error occured', e);
+      const options = new firefox.Options();
+      options.setBinary("/usr/local/bin/geckodriver");
+
+      let searchText = (extension) => `https://addons.mozilla.org/en-US/firefox/search/?platform=mac&q=${extension}`
+
+      let foundAddOns = 0;
+      const driver = await new Builder().forBrowser('firefox').build();
+      for (let i = 0; i < extensions.length; i++) {
+        let ext = extensions[i];
+        try {
+          await driver.get(searchText(ext));
+          let firstResult = await driver.findElement(By.css('a.SearchResult-link'));
+          await driver.wait(until.elementLocated(By.css('header.Card-header')));
+          firstResult = await driver.wait(until.elementIsVisible(firstResult), 1000);
+          await (firstResult.click())
+          let button = await driver.findElement(By.css('.AMInstallButton'));
+          button = await driver.wait(until.elementIsVisible(button), 1000);
+          await (button.click());
+          await (driver.sleep(5000));
+          foundAddOns += 1;
+        } catch (e) {
+          console.log('error occured', e);
+        }
       }
+      console.log(`-----------------------------`);
+      console.log(`${foundAddOns} Addon's Found`);
+      console.log(`-----------------------------`);
+    } else {
+      console.log(`-----------------------------`);
+      console.log(`No Extensions found`);
+      console.log(`-----------------------------`);
     }
-    console.log(`-----------------------------`);
-    console.log(`${foundAddOns} Addon's Found`);
-    console.log(`-----------------------------`);
-  } else {
-    console.log(`-----------------------------`);
-    console.log(`No Extensions found`);
-    console.log(`-----------------------------`);
-  }
+  });
 })();
 console.log('done')
