@@ -32,9 +32,10 @@ const chromeOptions = new chrome.Options();
   await extensionList.getText().then(async (text) => {
     let file = text;
     if (file) {
-
       console.log(`-----------------------------`);
-      console.log(`Extensionss Found! Now updating Firefox`);
+      console.log(`-----------------------------`);
+      console.log(`Extensions Found! Now updating Firefox`);
+      console.log(`-----------------------------`);
       console.log(`-----------------------------`);
 
       const firefox = require('selenium-webdriver/firefox');
@@ -67,11 +68,15 @@ const chromeOptions = new chrome.Options();
         }
       }
       console.log(`-----------------------------`);
+      console.log(`-----------------------------`);
       console.log(`${foundAddOns} Addon's Found`);
+      console.log(`-----------------------------`);
       console.log(`-----------------------------`);
     } else {
       console.log(`-----------------------------`);
+      console.log(`-----------------------------`);
       console.log(`No Extensions found`);
+      console.log(`-----------------------------`);
       console.log(`-----------------------------`);
     }
   });
