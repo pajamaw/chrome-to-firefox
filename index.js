@@ -7,14 +7,13 @@ const {Builder, By, Key, until, Capabilities} = require('selenium-webdriver');
 const chromeOptions = new chrome.Options();
 
 (async function myFunction() {
-  // chromeOptions.addArguments(`--user-data-dir=/Users/${user}/Library/Application Support/Google/Chrome`);
   let chromeCapabilities = Capabilities.chrome();
   
   chromeCapabilities.set('goog:chromeOptions', {
     'args': [
       `user-data-dir=/Users/${user}/Library/Application Support/Google/Chrome`,
       `--enable-profile-shortcut-manager`
-      ]
+    ]
   });
 
   const chromeDriver = await new Builder().forBrowser('chrome').withCapabilities(chromeCapabilities).build();
@@ -29,15 +28,14 @@ const chromeOptions = new chrome.Options();
   let extensionList = await chromeDriver.findElement(By.css('#extensions-value'));
   extensionList = await chromeDriver.wait(until.elementLocated(By.css('#extensions-value')));
   
-  // console.log(extensionList)
   let file = extensionList.getText();
 
   if (file) {
     const firefox = require('selenium-webdriver/firefox');
-    const fs = require('fs');
+    // const fs = require('fs');
     let formattedFile;
 
-    file = fs.readFileSync('example.txt', 'utf8');
+    // file = fs.readFileSync('example.txt', 'utf8');
     formattedFile = file.split(' : ').filter((item, index) => index%2 == 1 && !item.includes('Chrome') && !item.includes('Web Store')).join('\n');
     let extensions = file.split(' : ').filter((item, index) => index%2 == 1 && !item.includes('Chrome') && !item.includes('Web Store'));
 
@@ -72,6 +70,10 @@ const chromeOptions = new chrome.Options();
     console.log(`-----------------------------`);
     console.log(`${foundAddOns} Addon's Found`);
     console.log(`-----------------------------`);
-}
+  } else {
+    console.log(`-----------------------------`);
+    console.log(`No Extensions found`);
+    console.log(`-----------------------------`);
+  }
 })();
 console.log('done')
