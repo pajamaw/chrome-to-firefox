@@ -14,6 +14,8 @@ Chrome will open and the program will fetch a list of your extensions. Then it w
 
 With some add-on's after you click "Add Addon" a second tab will open up to enter in your password information / user account etc (e.g. LastPass and other password managers) when this happens go back to the original tab, as you'll need to continue adding the extensions and can fill in those details after all the extensions have been done. 
 
+After you've completed the migration MAKE SURE you create/sign-in to a firefox profile (gone are the days where extensions belong to browsers directly).
+
 ## Troubleshooting
 
 If you find that you're having an issue with your profile on chrome, try providing a custom path to your chrome profile. I've provided one by default but yours may be located in a different place. Particularly if you use Linux or Windows computers.  
