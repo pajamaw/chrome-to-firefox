@@ -1,84 +1,156 @@
 require('chromedriver');
 
 const user = process.env.USER;
-const chrome = require("selenium-webdriver/chrome");
-const selenium = require('selenium-webdriver');
-const {Builder, By, Key, until, Capabilities} = require('selenium-webdriver');
-const chromeOptions = new chrome.Options();
+const {Builder, By, until, Capabilities} = require('selenium-webdriver');
 
-(async function myFunction() {
-  let chromeCapabilities = Capabilities.chrome();
+const chromeExtensionsListPath = `chrome://system`
+const chromeExtensionsRevealButtonSelector = '#extensions-value-btn';
+const chromeExtensionsListNodeSelector = `#extensions-value`;
+
+const searchText = (extension) => `https://addons.mozilla.org/en-US/firefox/search/?platform=mac&q=${extension}`
+
+const noResultsNodeSelector = `.SearchResults-message`;
+const firstSearchResultNodeSelector = `a.SearchResult-link`;
+const firefoxInstallButton = `.AMInstallButton`;
+
+const userProvidedChromeDirectory = process.argv[2];
+
+let foundAddOns = 0;
+let failedAddOns = [];
+let convertedAddons = [];
+
+console.log(`-----------------------------`);
+console.log(`-----------------------------`);
+console.log('Running Chrome to Firefox');
+console.log(`-----------------------------`);
+console.log(`-----------------------------`);
+
+(async function run() {
+  const chromeCapabilities = Capabilities.chrome();
+  const chromeProfileDirectory = userProvidedChromeDirectory || `/Users/${user}/Library/Application Support/Google/Chrome`;
   
   chromeCapabilities.set('goog:chromeOptions', {
     'args': [
-      `user-data-dir=/Users/${user}/Library/Application Support/Google/Chrome`,
-      `--enable-profile-shortcut-manager`
+      `user-data-dir=${chromeProfileDirectory}`
     ]
   });
 
-  const chromeDriver = await new Builder().forBrowser('chrome').withCapabilities(chromeCapabilities).build();
+  let chromeDriver;
+  try {
+    chromeDriver = await new Builder().forBrowser('chrome').withCapabilities(chromeCapabilities).build();
+  } catch (e) {
+    console.log('Invalid User Data Directory for chrome');
+    console.log('Common Errors:');
+    console.log('- Incorrect Chrome profile location');
+    console.log('- Open instance of Chrome with target profile');
+    console.log('- Open instance of Chrome');
+    return;
+  }
 
-  await chromeDriver.get('chrome://system');
-  await (chromeDriver.sleep(10000));
+  // go to list of extensions in chrome system
+  await chromeDriver.get(chromeExtensionsListPath);
+  await chromeDriver.wait(until.elementLocated(By.css(chromeExtensionsRevealButtonSelector)));
 
-  let extButton = await chromeDriver.findElement(By.css('#extensions-value-btn'));
+  const extButton = chromeDriver.findElement(By.css(chromeExtensionsRevealButtonSelector));
 
-  extButton = await chromeDriver.wait(until.elementIsVisible(extButton), 5000);
-  await (extButton.click())
+  await (extButton.click());
 
-  let extensionList = await chromeDriver.findElement(By.css('#extensions-value'));
-  extensionList = await chromeDriver.wait(until.elementLocated(By.css('#extensions-value')));
+  // grab list of extensions
+  const extensionList = chromeDriver.wait(until.elementLocated(By.css(chromeExtensionsListNodeSelector)));
 
-  await extensionList.getText().then(async (text) => {
-    let file = text;
-    if (file) {
+  extensionList.getText().then(async (list) => {
+    if (list) {
+      // there's a hash at the end of each list item which we remove via the filter
+      // we also remove any default chrome extensions
+      const extensions = list.split(' : ').filter((item, index) => index%2 == 1 && !item.includes('Chrome') && !item.includes('Web Store'));
+      
       console.log(`-----------------------------`);
       console.log(`-----------------------------`);
-      console.log(`Extensions Found! Now updating Firefox`);
+      console.log(`${extensions.length} Extensions Found! Now updating Firefox`);
       console.log(`-----------------------------`);
       console.log(`-----------------------------`);
 
-      const firefox = require('selenium-webdriver/firefox');
-
-      let formattedFile = file.split(' : ').filter((item, index) => index%2 == 1 && !item.includes('Chrome') && !item.includes('Web Store')).join('\n');
-      let extensions = file.split(' : ').filter((item, index) => index%2 == 1 && !item.includes('Chrome') && !item.includes('Web Store'));
-
-      const options = new firefox.Options();
-      options.setBinary("/usr/local/bin/geckodriver");
-
-      let searchText = (extension) => `https://addons.mozilla.org/en-US/firefox/search/?platform=mac&q=${extension}`
-
-      let foundAddOns = 0;
-      const driver = await new Builder().forBrowser('firefox').build();
+      const driver = new Builder().forBrowser('firefox').build();
       for (let i = 0; i < extensions.length; i++) {
         let ext = extensions[i];
+
+        await driver.get(searchText(ext));
+        // either wait for the results to load or wait until the message that no results
+        // exist loads
+        await driver.wait(until.elementLocated(By.css(`${firstSearchResultNodeSelector}, ${noResultsNodeSelector}`)));
+        
+        // if the no results message comes up jump to the next one
         try {
-          await driver.get(searchText(ext));
-          let firstResult = await driver.findElement(By.css('a.SearchResult-link'));
-          await driver.wait(until.elementLocated(By.css('header.Card-header')));
-          firstResult = await driver.wait(until.elementIsVisible(firstResult), 1000);
-          await (firstResult.click())
-          let button = await driver.findElement(By.css('.AMInstallButton'));
+          // check if no results exists and if it does continue to next iteration
+          await driver.findElement(By.css(noResultsNodeSelector));
+          console.log(`-----------------------------`);
+          console.log(`No results found for ${ext}`);
+          console.log(`-----------------------------`);
+          failedAddOns.push(ext);
+          continue;
+        } catch (e) {
+          // console.log(`Results found for ${ext}`);
+        }
+
+        let result, button;
+        try {
+          result = driver.findElement(By.linkText(ext));
+          await (result.click());
+
+          button = driver.findElement(By.css(firefoxInstallButton));
           button = await driver.wait(until.elementIsVisible(button), 1000);
           await (button.click());
-          await (driver.sleep(5000));
           foundAddOns += 1;
+
+          // Give user time to approve extension
+          await (driver.sleep(6000));
+          continue;
         } catch (e) {
-          console.log('error occured', e);
+          console.log(`-----------------------------`);
+          console.log(`---No exact match was found for ${ext}---`);
+          console.log(`---Installing first result---`);
+          console.log(`-----------------------------`);
         }
+
+        result = driver.findElement(By.css(firstSearchResultNodeSelector));
+        await (result.click());
+
+        button = driver.findElement(By.css(firefoxInstallButton));
+        await driver.wait(until.elementIsVisible(button), 1000);
+        const newAddonName = await driver.getTitle();
+
+        await (button.click());
+        convertedAddons.push(`${ext} ==> ${newAddonName.split(`–`)[0]}`);
+        foundAddOns += 1;
+        // Give user time to approve extension
+        await (driver.sleep(6000));
       }
       console.log(`-----------------------------`);
       console.log(`-----------------------------`);
       console.log(`${foundAddOns} Addon's Found`);
       console.log(`-----------------------------`);
       console.log(`-----------------------------`);
+
+      console.log(`-----------------------------`);
+      console.log(`-----------------------------`);
+      console.log(`Addon's converted:`);
+      console.log(`${convertedAddons.join('\n')}`);
+      console.log(`-----------------------------`);
+      console.log(`-----------------------------`);
+
+      console.log(`-----------------------------`);
+      console.log(`-----------------------------`);
+      console.log(`Addon's not found:`);
+      console.log(`${failedAddOns.join('\n')}`);
+      console.log(`-----------------------------`);
+      console.log(`-----------------------------`);
+
     } else {
       console.log(`-----------------------------`);
       console.log(`-----------------------------`);
-      console.log(`No Extensions found`);
+      console.log(`No Addon's found`);
       console.log(`-----------------------------`);
       console.log(`-----------------------------`);
     }
   });
 })();
-console.log('done')
